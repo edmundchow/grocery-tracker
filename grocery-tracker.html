@@ -35,7 +35,8 @@
   /* Header */
   .header { background: var(--blue); color: white; padding: 16px 16px 0; position: sticky; top: 0; z-index: 100; }
   .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .app-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .app-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; cursor: pointer; }
+  .app-title:active { opacity: 0.8; }
   .header-date { font-size: 12px; opacity: 0.85; }
 
   /* Totals bar */
@@ -169,7 +170,7 @@
 <!-- Header -->
 <div class="header">
   <div class="header-top">
-    <div class="app-title">🛒 Market Tracker</div>
+    <div class="app-title" id="appTitle" onclick="editAppTitle()" title="Tap to rename">🛒 <span id="appTitleText">Market Tracker</span> ✎</div>
     <div class="header-date" id="headerDate"></div>
   </div>
   <div class="totals-bar">
@@ -551,18 +552,14 @@ function renderManageList() {
         <div class="manage-item-name">${item.name}</div>
         <div class="manage-item-meta">${item.cat}${item.defaultPrice ? ' · $'+parseFloat(item.defaultPrice).toFixed(2) : ''}</div>
         <div id="edit-${item.id}" style="display:none" class="edit-form">
-          <div class="input-row">
-            <input type="text" id="en-${item.id}" value="${item.name}" placeholder="Name">
-            <select id="ec-${item.id}" style="max-width:110px;flex:0 0 110px">
-              ${['produce','meat','dairy','bakery','pantry','other'].map(c=>`<option value="${c}"${item.cat===c?' selected':''}>${c}</option>`).join('')}
-            </select>
-          </div>
-          <div class="input-row">
-            <input type="number" id="ep-${item.id}" value="${item.defaultPrice||''}" placeholder="Usual price $" min="0" step="0.01">
-            <div class="edit-actions">
-              <button class="btn-save-sm" onclick="saveEdit(${item.id})">Save</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">Delete</button>
-            </div>
+          <input type="text" id="en-${item.id}" value="${item.name}" placeholder="Item name" style="width:100%;margin-bottom:8px">
+          <select id="ec-${item.id}" style="width:100%;margin-bottom:8px">
+            ${['produce','meat','dairy','bakery','pantry','other'].map(c=>`<option value="${c}"${item.cat===c?' selected':''}>${c}</option>`).join('')}
+          </select>
+          <input type="number" id="ep-${item.id}" value="${item.defaultPrice||''}" placeholder="Usual price $" min="0" step="0.01" style="width:100%;margin-bottom:8px">
+          <div class="edit-actions" style="display:flex;gap:8px">
+            <button class="btn-save-sm" style="flex:1;height:40px;font-size:14px" onclick="saveEdit(${item.id})">Save</button>
+            <button class="btn btn-sm btn-danger" style="flex:1;height:40px;font-size:14px" onclick="deleteItem(${item.id})">Delete</button>
           </div>
         </div>
       </div>
@@ -690,6 +687,18 @@ function registerSW() {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
+// ── App title ─────────────────────────────────────────────────────────────
+function editAppTitle() {
+  const current = document.getElementById('appTitleText').textContent;
+  const newTitle = prompt('Enter app name:', current);
+  if (newTitle && newTitle.trim()) {
+    const t = newTitle.trim();
+    document.getElementById('appTitleText').textContent = t;
+    state.appTitle = t;
+    saveState();
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
   await openDB();
@@ -698,6 +707,7 @@ async function init() {
   // Restore UI state
   document.getElementById('budgetInput').value = state.budget || '';
   if (state.budgetOn) document.getElementById('budgetToggle').classList.add('on');
+  if (state.appTitle) document.getElementById('appTitleText').textContent = state.appTitle;
 
   // Date header
   document.getElementById('headerDate').textContent =
