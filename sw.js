@@ -1,4 +1,4 @@
-const CACHE = 'market-tracker-v1';
+const CACHE = 'market-tracker-v2';
 const ASSETS = [
   './grocery-tracker.html',
   './manifest.json',
@@ -24,6 +24,12 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./grocery-tracker.html')))
+    fetch(e.request)
+      .then(response => {
+        const clone = response.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
