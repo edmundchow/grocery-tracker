@@ -1,12 +1,13 @@
 {
+  "id": "com.edmundchow.grocerytracker",
   "name": "Saturday Market Tracker",
   "short_name": "Market",
-  "description": "Track your weekly grocery spending",
+  "description": "Track your weekly Saturday grocery spending. Add items from your personal list, log special purchases, set a budget, and export your spending history to Excel.",
   "start_url": "./grocery-tracker.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "orientation": "portrait",
+  "orientation": "any",
   "scope": "./",
   "icons": [
     {
@@ -20,6 +21,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "label": "Saturday Market Tracker home screen"
     }
   ]
 }
