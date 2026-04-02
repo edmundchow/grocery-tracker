@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Market Tracker">
+<meta name="theme-color" content="#ffffff">
+<title>Market Tracker</title>
+
+<!-- Inline manifest via JS blob -->
+<script>
+const manifestData = {
+  name: "Saturday Market Tracker",
+  short_name: "Market Tracker",
+  description: "Track your weekly grocery spending",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#ffffff",
+  theme_color: "#2563eb",
+  orientation: "portrait",
+  icons: [
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%232563eb'/%3E%3Ctext x='96' y='128' font-size='100' text-anchor='middle' fill='white'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%232563eb'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' fill='white'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+const link = document.createElement('link');
+link.rel = 'manifest'; link.href = manifestURL;
+document.currentScript.parentNode.insertBefore(link, document.currentScript);
+</script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --blue: #2563eb; --blue-light: #eff6ff; --blue-text: #1d4ed8;
+    --green: #16a34a; --green-light: #f0fdf4; --green-text: #15803d;
+    --red: #dc2626; --red-light: #fef2f2; --red-text: #b91c1c;
+    --amber: #d97706; --amber-light: #fffbeb;
+    --gray: #6b7280; --gray-light: #f9fafb; --gray-200: #e5e7eb; --gray-300: #d1d5db;
+    --text: #111827; --text2: #6b7280; --text3: #9ca3af;
+    --border: #e5e7eb; --surface: #ffffff; --bg: #f3f4f6;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.1);
+    font-size: 16px;
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header { background: var(--blue); color: white; padding: 16px 16px 0; position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .app-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-date { font-size: 12px; opacity: 0.85; }
+
+  /* Totals bar */
+  .totals-bar { background: rgba(255,255,255,0.12); border-radius: 10px 10px 0 0; padding: 10px 16px; display: flex; gap: 0; }
+  .total-item { flex: 1; text-align: center; }
+  .total-item + .total-item { border-left: 1px solid rgba(255,255,255,0.2); }
+  .total-label { font-size: 10px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .total-value { font-size: 20px; font-weight: 700; }
+  .total-value.over { color: #fca5a5; }
+
+  /* Nav tabs */
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; }
+  .nav-btn { flex: 1; padding: 12px 4px; border: none; background: none; color: var(--text2); font-size: 11px; font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: color 0.15s; position: relative; }
+  .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-btn.active { color: var(--blue); }
+  .nav-btn.active::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 2px; background: var(--blue); border-radius: 2px 2px 0 0; }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .panel { display: none; padding: 16px; }
+  .panel.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden; }
+  .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .card-body { padding: 14px 16px; }
+
+  /* Budget row */
+  .budget-row { display: flex; align-items: center; gap: 10px; }
+  .budget-row label { font-size: 13px; color: var(--text2); white-space: nowrap; }
+  .budget-toggle { display: flex; align-items: center; gap: 6px; }
+  .toggle { width: 36px; height: 20px; background: var(--gray-200); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; border: none; }
+  .toggle.on { background: var(--blue); }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* Budget bar */
+  .budget-bar-wrap { margin-top: 10px; }
+  .budget-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .budget-bar-track { height: 8px; background: var(--gray-200); border-radius: 4px; overflow: hidden; }
+  .budget-bar-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width 0.4s, background 0.3s; }
+  .budget-bar-fill.warn { background: var(--amber); }
+  .budget-bar-fill.over { background: var(--red); }
+
+  /* Form inputs */
+  input[type=text], input[type=number], select {
+    width: 100%; height: 44px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--gray-light); color: var(--text); font-size: 15px; padding: 0 12px;
+    -webkit-appearance: none; appearance: none; outline: none; transition: border-color 0.15s;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--blue); background: white; }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+  .input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .input-row > * { flex: 1; }
+  .input-row .price-input { max-width: 90px; flex: 0 0 90px; }
+
+  /* Buttons */
+  .btn { height: 44px; padding: 0 16px; border-radius: var(--radius-sm); border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--blue); color: white; }
+  .btn-secondary { background: var(--gray-200); color: var(--text); font-weight: 500; }
+  .btn-danger { background: var(--red-light); color: var(--red-text); }
+  .btn-success { background: var(--green); color: white; }
+  .btn-sm { height: 34px; font-size: 13px; padding: 0 12px; }
+  .btn-full { width: 100%; margin-top: 4px; }
+  .btn-icon { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; background: var(--red-light); color: var(--red-text); border-radius: var(--radius-sm); border: none; cursor: pointer; }
+  .btn-save-sm { height: 34px; padding: 0 12px; border-radius: var(--radius-sm); border: none; background: var(--blue-light); color: var(--blue-text); font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  /* Section label */
+  .section-label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+
+  /* Cart items */
+  .cart-list { display: flex; flex-direction: column; gap: 6px; }
+  .cart-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-cat { font-size: 11px; color: var(--text3); }
+  .item-price { font-size: 15px; font-weight: 700; color: var(--text); margin-right: 4px; }
+  .empty-state { text-align: center; padding: 32px 16px; color: var(--text3); font-size: 14px; }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 8px; }
+
+  /* Save trip btn */
+  .save-trip-btn { background: var(--green); color: white; border: none; border-radius: var(--radius); padding: 16px; width: 100%; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .save-trip-btn:active { opacity: 0.85; }
+
+  /* Checkbox */
+  .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
+  .checkbox-row input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; accent-color: var(--blue); }
+  .checkbox-row span { font-size: 13px; color: var(--text2); }
+
+  /* Manage list */
+  .manage-item { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .manage-item:last-child { border-bottom: none; }
+  .manage-item-info { flex: 1; min-width: 0; }
+  .manage-item-name { font-size: 14px; font-weight: 500; }
+  .manage-item-meta { font-size: 11px; color: var(--text3); }
+  .manage-item-actions { display: flex; gap: 6px; }
+
+  /* Edit mode */
+  .edit-form { background: var(--blue-light); border-radius: var(--radius-sm); padding: 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+  .edit-form .input-row { margin-bottom: 0; }
+  .edit-actions { display: flex; gap: 8px; }
+
+  /* History */
+  .history-item { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .history-item:last-child { border-bottom: none; }
+  .history-date { flex: 1; }
+  .history-date-main { font-size: 14px; font-weight: 600; }
+  .history-date-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .history-amount { font-size: 18px; font-weight: 700; color: var(--green); }
+  .history-actions { display: flex; gap: 6px; }
+
+  /* Export section */
+  .export-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; }
+  .export-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1f2937; color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Install banner */
+  .install-banner { background: var(--blue-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .install-banner-text { flex: 1; font-size: 13px; color: var(--blue-text); line-height: 1.4; }
+  .install-banner-title { font-weight: 600; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">🛒 Market Tracker</div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
+  <div class="totals-bar">
+    <div class="total-item">
+      <div class="total-label">Spent today</div>
+      <div class="total-value" id="totalSpent">$0.00</div>
+    </div>
+    <div class="total-item">
+      <div class="total-label">Items</div>
+      <div class="total-value" id="itemCount">0</div>
+    </div>
+    <div class="total-item">
+      <div class="total-label">Budget left</div>
+      <div class="total-value" id="budgetLeft">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="switchTab('shop')" id="nav-shop">
+    <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    Shopping
+  </button>
+  <button class="nav-btn" onclick="switchTab('manage')" id="nav-manage">
+    <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    My List
+  </button>
+  <button class="nav-btn" onclick="switchTab('history')" id="nav-history">
+    <svg viewBox="0 0 24 24"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/><polyline points="3 3 3 7 7 7"/></svg>
+    History
+  </button>
+</nav>
+
+<!-- Content -->
+<div class="content">
+
+  <!-- SHOPPING PANEL -->
+  <div class="panel active" id="panel-shop">
+
+    <div id="installBanner" style="display:none" class="install-banner">
+      <div>📲</div>
+      <div class="install-banner-text">
+        <div class="install-banner-title">Install as app</div>
+        Tap your browser menu → "Add to Home screen" to install
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="document.getElementById('installBanner').style.display='none'">✕</button>
+    </div>
+
+    <!-- Budget -->
+    <div class="card">
+      <div class="card-body">
+        <div class="budget-row">
+          <button class="toggle" id="budgetToggle" onclick="toggleBudget()"></button>
+          <label style="font-size:14px;font-weight:500">Weekly budget</label>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="font-size:15px;color:var(--text2)">$</span>
+            <input type="number" id="budgetInput" style="width:90px;height:36px;font-size:15px" min="0" step="10" placeholder="150" oninput="renderSummary()">
+          </div>
+        </div>
+        <div id="budgetBarWrap" class="budget-bar-wrap" style="display:none">
+          <div class="budget-bar-labels">
+            <span id="budgetBarLeft"></span>
+            <span id="budgetBarPct"></span>
+          </div>
+          <div class="budget-bar-track"><div class="budget-bar-fill" id="budgetBar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- From my list -->
+    <div class="card">
+      <div class="card-header">From my list</div>
+      <div class="card-body">
+        <div class="input-row">
+          <select id="dropdownSelect">
+            <option value="">— choose item —</option>
+          </select>
+          <input type="number" id="dropdownPrice" placeholder="$0.00" class="price-input" min="0" step="0.01">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="addFromDropdown()">Add to cart</button>
+      </div>
+    </div>
+
+    <!-- Special item -->
+    <div class="card">
+      <div class="card-header">Special item</div>
+      <div class="card-body">
+        <div class="input-row" style="margin-bottom:8px">
+          <input type="text" id="specialName" placeholder="Item name">
+          <select id="specialCat" style="max-width:120px;flex:0 0 120px">
+            <option value="produce">Produce</option>
+            <option value="meat">Meat</option>
+            <option value="dairy">Dairy</option>
+            <option value="bakery">Bakery</option>
+            <option value="pantry">Pantry</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <input type="number" id="specialPrice" placeholder="$0.00" min="0" step="0.01">
+          <button class="btn btn-primary" onclick="addSpecial()" style="flex:0 0 auto">Add</button>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="saveToList">
+          <span>Save to my list for future use</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Cart -->
+    <div class="section-label">This week's cart</div>
+    <div class="cart-list" id="cartList">
+      <div class="empty-state"><div class="empty-icon">🛒</div>Your cart is empty</div>
+    </div>
+
+    <button class="save-trip-btn" onclick="saveTrip()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      Save this week's trip
+    </button>
+  </div>
+
+  <!-- MANAGE LIST PANEL -->
+  <div class="panel" id="panel-manage">
+    <div class="card">
+      <div class="card-header">My grocery list</div>
+      <div id="manageList" style="padding:0 16px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Add new item</div>
+      <div class="card-body">
+        <div class="input-row">
+          <input type="text" id="newName" placeholder="Item name">
+          <select id="newCat" style="max-width:120px;flex:0 0 120px">
+            <option value="produce">Produce</option>
+            <option value="meat">Meat</option>
+            <option value="dairy">Dairy</option>
+            <option value="bakery">Bakery</option>
+            <option value="pantry">Pantry</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <input type="number" id="newDefaultPrice" placeholder="Usual price $" min="0" step="0.01">
+          <button class="btn btn-primary" onclick="addToList()" style="flex:0 0 auto">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY PANEL -->
+  <div class="panel" id="panel-history">
+    <!-- Export -->
+    <div class="export-card">
+      <div class="export-title">📊 Export to Excel</div>
+      <select id="exportSelect" style="margin-bottom:10px">
+        <option value="all">All trips</option>
+      </select>
+      <button class="btn btn-success btn-full" onclick="exportExcel()">Download spreadsheet</button>
+      <div id="exportMsg" style="font-size:12px;color:var(--text2);margin-top:8px;text-align:center"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Past trips</div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Load SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const CAT_COLORS = { produce:'#16a34a', meat:'#dc2626', dairy:'#2563eb', bakery:'#d97706', pantry:'#7c3aed', other:'#6b7280' };
+const DB_NAME = 'MarketTrackerDB', DB_VER = 1;
+let db, state = { list:[], cart:[], history:[], nextId:100, budgetOn:false, budget:150 };
+
+// ── IndexedDB ──────────────────────────────────────────────────────────────
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('state')) d.createObjectStore('state');
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function loadState() {
+  return new Promise(res => {
+    const tx = db.transaction('state', 'readonly');
+    const req = tx.objectStore('state').get('app');
+    req.onsuccess = () => {
+      if (req.result) state = req.result;
+      else state = {
+        list: [
+          {id:1,name:'Milk',cat:'dairy',defaultPrice:4.50},
+          {id:2,name:'Bread',cat:'bakery',defaultPrice:5.00},
+          {id:3,name:'Eggs (dozen)',cat:'dairy',defaultPrice:7.50},
+          {id:4,name:'Chicken breast',cat:'meat',defaultPrice:12.00},
+          {id:5,name:'Bananas',cat:'produce',defaultPrice:3.00},
+          {id:6,name:'Tomatoes',cat:'produce',defaultPrice:4.00},
+          {id:7,name:'Cheese',cat:'dairy',defaultPrice:8.00},
+          {id:8,name:'Pasta',cat:'pantry',defaultPrice:2.50},
+          {id:9,name:'Rice (2kg)',cat:'pantry',defaultPrice:6.00},
+          {id:10,name:'Apples',cat:'produce',defaultPrice:5.50},
+          {id:11,name:'Butter',cat:'dairy',defaultPrice:5.00},
+          {id:12,name:'Yoghurt',cat:'dairy',defaultPrice:4.00},
+          {id:13,name:'Mince beef',cat:'meat',defaultPrice:10.00},
+          {id:14,name:'Carrots',cat:'produce',defaultPrice:2.50},
+          {id:15,name:'Onions',cat:'produce',defaultPrice:2.00},
+        ],
+        cart:[], history:[], nextId:100, budgetOn:false, budget:150
+      };
+      res();
+    };
+  });
+}
+
+function saveState() {
+  const tx = db.transaction('state', 'readwrite');
+  tx.objectStore('state').put(state, 'app');
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function toast(msg, duration=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function fmtMoney(n) { return '$' + Math.abs(n).toFixed(2); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('nav-'+tab).classList.add('active');
+  document.getElementById('panel-'+tab).classList.add('active');
+  if (tab === 'manage') renderManageList();
+  if (tab === 'history') renderHistory();
+}
+
+// ── Summary / header ───────────────────────────────────────────────────────
+function renderSummary() {
+  const total = state.cart.reduce((s,i) => s + parseFloat(i.price), 0);
+  document.getElementById('totalSpent').textContent = fmtMoney(total);
+  document.getElementById('itemCount').textContent = state.cart.length;
+
+  const budgetOn = state.budgetOn;
+  const budget = parseFloat(document.getElementById('budgetInput').value) || 0;
+  state.budget = budget;
+
+  if (budgetOn && budget > 0) {
+    const left = budget - total;
+    const over = left < 0;
+    const pct = Math.min(100, Math.round((total / budget) * 100));
+    const el = document.getElementById('budgetLeft');
+    el.textContent = (over ? '-' : '') + fmtMoney(left);
+    el.className = 'total-value' + (over ? ' over' : '');
+    document.getElementById('budgetBarWrap').style.display = 'block';
+    document.getElementById('budgetBarLeft').textContent = fmtMoney(total) + ' of ' + fmtMoney(budget);
+    document.getElementById('budgetBarPct').textContent = pct + '%';
+    const bar = document.getElementById('budgetBar');
+    bar.style.width = pct + '%';
+    bar.className = 'budget-bar-fill' + (pct >= 100 ? ' over' : pct >= 80 ? ' warn' : '');
+  } else {
+    document.getElementById('budgetLeft').textContent = '—';
+    document.getElementById('budgetLeft').className = 'total-value';
+    document.getElementById('budgetBarWrap').style.display = 'none';
+  }
+}
+
+function toggleBudget() {
+  state.budgetOn = !state.budgetOn;
+  document.getElementById('budgetToggle').className = 'toggle' + (state.budgetOn ? ' on' : '');
+  renderSummary(); saveState();
+}
+
+// ── Dropdown ───────────────────────────────────────────────────────────────
+function renderDropdown() {
+  const sel = document.getElementById('dropdownSelect');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">— choose item —</option>' +
+    [...state.list].sort((a,b) => a.name.localeCompare(b.name))
+      .map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+  if (val) sel.value = val;
+  sel.onchange = () => {
+    const item = state.list.find(i => i.id == sel.value);
+    if (item) document.getElementById('dropdownPrice').value = item.defaultPrice || '';
+    else document.getElementById('dropdownPrice').value = '';
+  };
+}
+
+// ── Cart ───────────────────────────────────────────────────────────────────
+function renderCart() {
+  const el = document.getElementById('cartList');
+  if (!state.cart.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div>Your cart is empty</div>';
+    return;
+  }
+  el.innerHTML = state.cart.map(i => `
+    <div class="cart-item">
+      <div class="cat-dot" style="background:${CAT_COLORS[i.cat]||CAT_COLORS.other}"></div>
+      <div class="item-info">
+        <div class="item-name">${i.name}</div>
+        <div class="item-cat">${i.cat}</div>
+      </div>
+      <div class="item-price">${fmtMoney(i.price)}</div>
+      <button class="btn-icon" onclick="removeFromCart(${i.uid})">×</button>
+    </div>`).join('');
+}
+
+function addFromDropdown() {
+  const sel = document.getElementById('dropdownSelect');
+  const price = parseFloat(document.getElementById('dropdownPrice').value);
+  const item = state.list.find(i => i.id == sel.value);
+  if (!item) { toast('Please choose an item'); return; }
+  if (isNaN(price) || price <= 0) { toast('Please enter a price'); return; }
+  state.cart.push({ uid: Date.now(), name: item.name, cat: item.cat, price });
+  sel.value = ''; document.getElementById('dropdownPrice').value = '';
+  saveState(); renderCart(); renderSummary();
+}
+
+function addSpecial() {
+  const name = document.getElementById('specialName').value.trim();
+  const cat = document.getElementById('specialCat').value;
+  const price = parseFloat(document.getElementById('specialPrice').value);
+  if (!name) { toast('Please enter an item name'); return; }
+  if (isNaN(price) || price <= 0) { toast('Please enter a price'); return; }
+  state.cart.push({ uid: Date.now(), name, cat, price });
+  if (document.getElementById('saveToList').checked) {
+    state.list.push({ id: ++state.nextId, name, cat, defaultPrice: price });
+    document.getElementById('saveToList').checked = false;
+    toast('Added to cart & saved to your list ✓');
+    renderDropdown();
+  } else {
+    toast('Added to cart ✓');
+  }
+  document.getElementById('specialName').value = '';
+  document.getElementById('specialPrice').value = '';
+  saveState(); renderCart(); renderSummary();
+}
+
+function removeFromCart(uid) {
+  state.cart = state.cart.filter(i => i.uid !== uid);
+  saveState(); renderCart(); renderSummary();
+}
+
+function saveTrip() {
+  if (!state.cart.length) { toast('Your cart is empty'); return; }
+  const total = state.cart.reduce((s,i) => s + parseFloat(i.price), 0);
+  const now = new Date();
+  const label = now.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  state.history.unshift({ date: label, isoDate: now.toISOString(), items: [...state.cart], total });
+  state.cart = [];
+  saveState(); renderCart(); renderSummary();
+  toast('Trip saved! 🎉');
+}
+
+// ── Manage list ────────────────────────────────────────────────────────────
+let editingId = null;
+
+function renderManageList() {
+  const el = document.getElementById('manageList');
+  const sorted = [...state.list].sort((a,b) => a.name.localeCompare(b.name));
+  if (!sorted.length) { el.innerHTML = '<div class="empty-state" style="padding:20px 0">No items yet</div>'; return; }
+
+  el.innerHTML = sorted.map(item => `
+    <div class="manage-item" id="mitem-${item.id}">
+      <div class="cat-dot" style="background:${CAT_COLORS[item.cat]||CAT_COLORS.other};margin-top:2px"></div>
+      <div class="manage-item-info">
+        <div class="manage-item-name">${item.name}</div>
+        <div class="manage-item-meta">${item.cat}${item.defaultPrice ? ' · $'+parseFloat(item.defaultPrice).toFixed(2) : ''}</div>
+        <div id="edit-${item.id}" style="display:none" class="edit-form">
+          <div class="input-row">
+            <input type="text" id="en-${item.id}" value="${item.name}" placeholder="Name">
+            <select id="ec-${item.id}" style="max-width:110px;flex:0 0 110px">
+              ${['produce','meat','dairy','bakery','pantry','other'].map(c=>`<option value="${c}"${item.cat===c?' selected':''}>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="input-row">
+            <input type="number" id="ep-${item.id}" value="${item.defaultPrice||''}" placeholder="Usual price $" min="0" step="0.01">
+            <div class="edit-actions">
+              <button class="btn-save-sm" onclick="saveEdit(${item.id})">Save</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="toggleEdit(${item.id})" id="edit-btn-${item.id}">Edit</button>
+    </div>`).join('');
+}
+
+function toggleEdit(id) {
+  const form = document.getElementById('edit-'+id);
+  const btn = document.getElementById('edit-btn-'+id);
+  const showing = form.style.display === 'block';
+  // close any open form
+  document.querySelectorAll('.edit-form').forEach(f => f.style.display='none');
+  document.querySelectorAll('[id^=edit-btn-]').forEach(b => b.textContent='Edit');
+  if (!showing) { form.style.display='block'; btn.textContent='Cancel'; }
+}
+
+function saveEdit(id) {
+  const item = state.list.find(i => i.id === id);
+  if (!item) return;
+  item.name = document.getElementById('en-'+id).value.trim() || item.name;
+  item.cat = document.getElementById('ec-'+id).value;
+  item.defaultPrice = parseFloat(document.getElementById('ep-'+id).value) || 0;
+  saveState(); renderDropdown(); renderManageList(); toast('Saved ✓');
+}
+
+function deleteItem(id) {
+  if (!confirm('Remove this item from your list?')) return;
+  state.list = state.list.filter(i => i.id !== id);
+  saveState(); renderDropdown(); renderManageList(); toast('Item removed');
+}
+
+function addToList() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) { toast('Please enter a name'); return; }
+  const cat = document.getElementById('newCat').value;
+  const def = parseFloat(document.getElementById('newDefaultPrice').value) || 0;
+  state.list.push({ id: ++state.nextId, name, cat, defaultPrice: def });
+  document.getElementById('newName').value = '';
+  document.getElementById('newDefaultPrice').value = '';
+  saveState(); renderDropdown(); renderManageList(); toast('Added to list ✓');
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const hist = document.getElementById('historyList');
+  const expSel = document.getElementById('exportSelect');
+  if (!state.history.length) {
+    hist.innerHTML = '<div class="empty-state" style="padding:24px">No saved trips yet</div>';
+    expSel.innerHTML = '<option value="all">All trips</option>';
+    return;
+  }
+  hist.innerHTML = state.history.map((h,i) => `
+    <div class="history-item">
+      <div class="history-date">
+        <div class="history-date-main">${h.date}</div>
+        <div class="history-date-sub">${h.items.length} items</div>
+      </div>
+      <div class="history-amount">${fmtMoney(h.total)}</div>
+      <div class="history-actions">
+        <button class="btn btn-sm btn-secondary" onclick="viewTrip(${i})">View</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteTrip(${i})">Del</button>
+      </div>
+    </div>`).join('');
+
+  expSel.innerHTML = '<option value="all">All trips</option>' +
+    state.history.map((h,i) => `<option value="${i}">${h.date} — ${fmtMoney(h.total)}</option>`).join('');
+}
+
+function viewTrip(idx) {
+  const h = state.history[idx];
+  const lines = h.items.map(i => `• ${i.name} (${i.cat}) — ${fmtMoney(i.price)}`).join('\n');
+  alert(`${h.date}\n\n${lines}\n\nTotal: ${fmtMoney(h.total)}`);
+}
+
+function deleteTrip(idx) {
+  if (!confirm('Delete this trip?')) return;
+  state.history.splice(idx, 1);
+  saveState(); renderHistory(); toast('Trip deleted');
+}
+
+// ── Excel export ───────────────────────────────────────────────────────────
+function exportExcel() {
+  if (typeof XLSX === 'undefined') { toast('Excel library loading, try again'); return; }
+  const val = document.getElementById('exportSelect').value;
+  const trips = val === 'all' ? state.history : [state.history[parseInt(val)]];
+  if (!trips.length) { toast('No trips to export'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  trips.forEach(trip => {
+    const rows = [
+      ['Saturday Market — ' + trip.date],
+      [],
+      ['Item', 'Category', 'Price (AUD)']
+    ];
+    trip.items.forEach(i => rows.push([i.name, i.cat, parseFloat(i.price)]));
+    rows.push([]);
+    rows.push(['', 'TOTAL', trip.total]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch:24 }, { wch:12 }, { wch:14 }];
+    const name = trip.date.replace(/[:\\\/\?\*\[\]]/g,'').substring(0,31);
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+
+  if (trips.length > 1) {
+    const sumRows = [['Summary — All trips'], [], ['Date', 'Items', 'Total (AUD)']];
+    trips.forEach(t => sumRows.push([t.date, t.items.length, t.total]));
+    const avg = trips.reduce((s,t)=>s+t.total,0)/trips.length;
+    sumRows.push([], ['Average per trip', '', parseFloat(avg.toFixed(2))]);
+    sumRows.push(['Total spent', '', trips.reduce((s,t)=>s+t.total,0)]);
+    const ws2 = XLSX.utils.aoa_to_sheet(sumRows);
+    ws2['!cols'] = [{ wch:28 }, { wch:8 }, { wch:14 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+  }
+
+  const fname = val === 'all' ? 'market_all_trips.xlsx' : `market_${trips[0].date.replace(/[^a-zA-Z0-9]/g,'_')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  document.getElementById('exportMsg').textContent = '✓ Downloaded: ' + fname;
+}
+
+// ── Service Worker (offline support) ──────────────────────────────────────
+function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  const swCode = `
+    const CACHE = 'market-tracker-v1';
+    const URLS = [self.location.href];
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS)));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match(e.request))));
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(url).catch(() => {});
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function init() {
+  await openDB();
+  await loadState();
+
+  // Restore UI state
+  document.getElementById('budgetInput').value = state.budget || '';
+  if (state.budgetOn) document.getElementById('budgetToggle').classList.add('on');
+
+  // Date header
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long' });
+
+  renderDropdown();
+  renderCart();
+  renderSummary();
+  registerSW();
+
+  // Show install banner if not standalone
+  if (!window.matchMedia('(display-mode: standalone)').matches && !navigator.standalone) {
+    setTimeout(() => { document.getElementById('installBanner').style.display = 'flex'; }, 1500);
+  }
+
+  // Enter key shortcuts
+  document.getElementById('dropdownPrice').addEventListener('keydown', e => { if(e.key==='Enter') addFromDropdown(); });
+  document.getElementById('specialPrice').addEventListener('keydown', e => { if(e.key==='Enter') addSpecial(); });
+  document.getElementById('newDefaultPrice').addEventListener('keydown', e => { if(e.key==='Enter') addToList(); });
+}
+
+init();
+</script>
+</body>
+</html>
