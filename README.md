@@ -1,4 +1,4 @@
-# 🛒 Saturday Market Tracker
+# 🛒 Where My Money Went
 
 A lightweight Progressive Web App (PWA) to track your weekly grocery spending at the market. Built with vanilla HTML, CSS and JavaScript — no frameworks, no dependencies, works fully offline.
 
