@@ -6,9 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Market Tracker">
+<meta name="apple-mobile-web-app-title" content="Where My Money Went">
 <meta name="theme-color" content="#ffffff">
-<title>Market Tracker</title>
+<title>Where My Money Went</title>
 
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -170,7 +170,7 @@
 <!-- Header -->
 <div class="header">
   <div class="header-top">
-    <div class="app-title" id="appTitle" onclick="editAppTitle()" title="Tap to rename">🛒 <span id="appTitleText">Market Tracker</span> ✎</div>
+    <div class="app-title" id="appTitle" onclick="editAppTitle()" title="Tap to rename">🛒 <span id="appTitleText">Where My Money Went</span> ✎</div>
     <div class="header-date" id="headerDate"></div>
   </div>
   <div class="totals-bar">
@@ -350,7 +350,7 @@
 <script>
 // ── Constants ──────────────────────────────────────────────────────────────
 const CAT_COLORS = { produce:'#16a34a', meat:'#dc2626', dairy:'#2563eb', bakery:'#d97706', pantry:'#7c3aed', other:'#6b7280' };
-const DB_NAME = 'MarketTrackerDB', DB_VER = 1;
+const DB_NAME = 'WhereMyMoneyWentDB', DB_VER = 1;
 let db, state = { list:[], cart:[], history:[], nextId:100, budgetOn:false, budget:150 };
 
 // ── IndexedDB ──────────────────────────────────────────────────────────────
@@ -652,7 +652,7 @@ function exportExcel() {
 
   trips.forEach(trip => {
     const rows = [
-      ['Saturday Market — ' + trip.date],
+      ['Where My Money Went — ' + trip.date],
       [],
       ['Item', 'Category', 'Price (AUD)']
     ];
@@ -676,7 +676,7 @@ function exportExcel() {
     XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
   }
 
-  const fname = val === 'all' ? 'market_all_trips.xlsx' : `market_${trips[0].date.replace(/[^a-zA-Z0-9]/g,'_')}.xlsx`;
+  const fname = val === 'all' ? 'where_my_money_went_all_trips.xlsx' : `where_my_money_went_${trips[0].date.replace(/[^a-zA-Z0-9]/g,'_')}.xlsx`;
   XLSX.writeFile(wb, fname);
   document.getElementById('exportMsg').textContent = '✓ Downloaded: ' + fname;
 }
