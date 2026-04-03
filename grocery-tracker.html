@@ -737,9 +737,15 @@ function saveEdit(id) {
 }
 
 function deleteItem(id) {
-  if (!customConfirm('Remove "' + (state.list.find(i=>i.id===id)?.name||'this item') + '" from your list?', () => doDeleteItem(id))) return;
-  state.list = state.list.filter(i => i.id !== id);
-  saveState(); renderDropdown(); renderManageList(); toast('Item removed');
+  const name = state.list.find(i => i.id === id)?.name || 'this item';
+  customConfirm('Remove "' + name + '" from your list?', () => {
+    state.list = state.list.filter(i => i.id !== id);
+    saveState();
+    renderDropdown();
+    renderShopCatSelect();
+    renderManageList();
+    toast('Item removed');
+  });
 }
 
 function addToList() {
