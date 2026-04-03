@@ -199,6 +199,10 @@
     <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
     My List
   </button>
+  <button class="nav-btn" onclick="switchTab('categories')" id="nav-categories">
+    <svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="15" cy="15" r="3"/><path d="M6 20L18 4"/></svg>
+    Categories
+  </button>
   <button class="nav-btn" onclick="switchTab('history')" id="nav-history">
     <svg viewBox="0 0 24 24"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/><polyline points="3 3 3 7 7 7"/></svg>
     History
@@ -261,14 +265,7 @@
       <div class="card-body">
         <div class="input-row" style="margin-bottom:8px">
           <input type="text" id="specialName" placeholder="Item name">
-          <select id="specialCat" style="max-width:120px;flex:0 0 120px">
-            <option value="produce">Produce</option>
-            <option value="meat">Meat</option>
-            <option value="dairy">Dairy</option>
-            <option value="bakery">Bakery</option>
-            <option value="pantry">Pantry</option>
-            <option value="other">Other</option>
-          </select>
+          <select id="specialCat" style="max-width:120px;flex:0 0 120px"></select>
         </div>
         <div class="input-row">
           <input type="number" id="specialPrice" placeholder="$0.00" min="0" step="0.01">
@@ -305,19 +302,30 @@
       <div class="card-body">
         <div class="input-row">
           <input type="text" id="newName" placeholder="Item name">
-          <select id="newCat" style="max-width:120px;flex:0 0 120px">
-            <option value="produce">Produce</option>
-            <option value="meat">Meat</option>
-            <option value="dairy">Dairy</option>
-            <option value="bakery">Bakery</option>
-            <option value="pantry">Pantry</option>
-            <option value="other">Other</option>
-          </select>
+          <select id="newCat" style="max-width:120px;flex:0 0 120px"></select>
         </div>
         <div class="input-row">
           <input type="number" id="newDefaultPrice" placeholder="Usual price $" min="0" step="0.01">
           <button class="btn btn-primary" onclick="addToList()" style="flex:0 0 auto">Add</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATEGORIES PANEL -->
+  <div class="panel" id="panel-categories">
+    <div class="card">
+      <div class="card-header">My categories</div>
+      <div id="catList" style="padding:0 16px"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Add new category</div>
+      <div class="card-body">
+        <div class="input-row" style="margin-bottom:8px">
+          <input type="text" id="newCatName" placeholder="Category name">
+          <input type="color" id="newCatColor" value="#16a34a" style="width:44px;height:44px;padding:2px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;flex:0 0 44px">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="addCategory()">Add category</button>
       </div>
     </div>
   </div>
@@ -349,7 +357,90 @@
 
 <script>
 // ── Constants ──────────────────────────────────────────────────────────────
-const CAT_COLORS = { produce:'#16a34a', meat:'#dc2626', dairy:'#2563eb', bakery:'#d97706', pantry:'#7c3aed', other:'#6b7280' };
+const DEFAULT_CATS = [
+  { id:'produce', name:'Produce', color:'#16a34a' },
+  { id:'meat',    name:'Meat',    color:'#dc2626' },
+  { id:'dairy',   name:'Dairy',   color:'#2563eb' },
+  { id:'bakery',  name:'Bakery',  color:'#d97706' },
+  { id:'pantry',  name:'Pantry',  color:'#7c3aed' },
+  { id:'other',   name:'Other',   color:'#6b7280' },
+];
+function getCatColor(id) {
+  if (!state.categories) return '#6b7280';
+  const c = state.categories.find(c => c.id === id);
+  return c ? c.color : '#6b7280';
+}
+function getCatName(id) {
+  if (!state.categories) return id;
+  const c = state.categories.find(c => c.id === id);
+  return c ? c.name : id;
+}
+function populateCatSelects(selectedId) {
+  ['specialCat','newCat'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const cur = sel.value || selectedId || state.categories[0]?.id;
+    sel.innerHTML = state.categories.map(c =>
+      `<option value="${c.id}"${c.id===cur?' selected':''}>${c.name}</option>`
+    ).join('');
+  });
+}
+function renderCatList() {
+  const el = document.getElementById('catList');
+  if (!state.categories.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0">No categories yet</div>';
+    return;
+  }
+  el.innerHTML = state.categories.map(cat => `
+    <div class="manage-item" id="citem-${cat.id}">
+      <div class="cat-dot" style="background:${cat.color};margin-top:2px;width:14px;height:14px"></div>
+      <div class="manage-item-info">
+        <div class="manage-item-name">${cat.name}</div>
+        <div id="cedit-${cat.id}" style="display:none" class="edit-form">
+          <div class="input-row" style="margin-bottom:8px;align-items:center">
+            <input type="text" id="cen-${cat.id}" value="${cat.name}" placeholder="Category name" style="flex:1">
+            <input type="color" id="cec-${cat.id}" value="${cat.color}" style="width:44px;height:44px;padding:2px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;flex:0 0 44px">
+          </div>
+          <div class="edit-actions" style="display:flex;gap:8px">
+            <button class="btn-save-sm" style="flex:1;height:40px;font-size:14px" onclick="saveCatEdit('${cat.id}')">Save</button>
+            <button class="btn btn-sm btn-danger" style="flex:1;height:40px;font-size:14px" onclick="deleteCat('${cat.id}')">Delete</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="toggleCatEdit('${cat.id}')" id="cedit-btn-${cat.id}">Edit</button>
+    </div>`).join('');
+}
+function toggleCatEdit(id) {
+  const form = document.getElementById('cedit-'+id);
+  const btn = document.getElementById('cedit-btn-'+id);
+  const showing = form.style.display === 'block';
+  document.querySelectorAll('[id^=cedit-]:not([id^=cedit-btn])').forEach(f => { if(f.tagName==='DIV') f.style.display='none'; });
+  document.querySelectorAll('[id^=cedit-btn-]').forEach(b => b.textContent='Edit');
+  if (!showing) { form.style.display='block'; btn.textContent='Cancel'; }
+}
+function saveCatEdit(id) {
+  const cat = state.categories.find(c => c.id === id);
+  if (!cat) return;
+  cat.name = document.getElementById('cen-'+id).value.trim() || cat.name;
+  cat.color = document.getElementById('cec-'+id).value;
+  saveState(); populateCatSelects(); renderCatList(); toast('Category saved ✓');
+}
+function deleteCat(id) {
+  const inUse = state.list.some(i => i.cat === id);
+  if (inUse) { toast('Cannot delete — items are using this category'); return; }
+  if (!confirm('Delete this category?')) return;
+  state.categories = state.categories.filter(c => c.id !== id);
+  saveState(); populateCatSelects(); renderCatList(); toast('Category deleted');
+}
+function addCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) { toast('Please enter a category name'); return; }
+  const color = document.getElementById('newCatColor').value;
+  const id = name.toLowerCase().replace(/[^a-z0-9]/g,'_') + '_' + Date.now();
+  state.categories.push({ id, name, color });
+  document.getElementById('newCatName').value = '';
+  saveState(); populateCatSelects(); renderCatList(); toast('Category added ✓');
+}
 const DB_NAME = 'WhereMyMoneyWentDB', DB_VER = 1;
 let db, state = { list:[], cart:[], history:[], nextId:100, budgetOn:false, budget:150 };
 
@@ -390,7 +481,8 @@ function loadState() {
           {id:14,name:'Carrots',cat:'produce',defaultPrice:2.50},
           {id:15,name:'Onions',cat:'produce',defaultPrice:2.00},
         ],
-        cart:[], history:[], nextId:100, budgetOn:false, budget:150
+        cart:[], history:[], nextId:100, budgetOn:false, budget:150,
+        categories: DEFAULT_CATS
       };
       res();
     };
@@ -417,6 +509,7 @@ function switchTab(tab) {
   document.getElementById('nav-'+tab).classList.add('active');
   document.getElementById('panel-'+tab).classList.add('active');
   if (tab === 'manage') renderManageList();
+  if (tab === 'categories') renderCatList();
   if (tab === 'history') renderHistory();
 }
 
@@ -480,7 +573,7 @@ function renderCart() {
   }
   el.innerHTML = state.cart.map(i => `
     <div class="cart-item">
-      <div class="cat-dot" style="background:${CAT_COLORS[i.cat]||CAT_COLORS.other}"></div>
+      <div class="cat-dot" style="background:${getCatColor(i.cat)}"></div>
       <div class="item-info">
         <div class="item-name">${i.name}</div>
         <div class="item-cat">${i.cat}</div>
@@ -547,14 +640,14 @@ function renderManageList() {
 
   el.innerHTML = sorted.map(item => `
     <div class="manage-item" id="mitem-${item.id}">
-      <div class="cat-dot" style="background:${CAT_COLORS[item.cat]||CAT_COLORS.other};margin-top:2px"></div>
+      <div class="cat-dot" style="background:${getCatColor(item.cat)};margin-top:2px"></div>
       <div class="manage-item-info">
         <div class="manage-item-name">${item.name}</div>
         <div class="manage-item-meta">${item.cat}${item.defaultPrice ? ' · $'+parseFloat(item.defaultPrice).toFixed(2) : ''}</div>
         <div id="edit-${item.id}" style="display:none" class="edit-form">
           <input type="text" id="en-${item.id}" value="${item.name}" placeholder="Item name" style="width:100%;margin-bottom:8px">
           <select id="ec-${item.id}" style="width:100%;margin-bottom:8px">
-            ${['produce','meat','dairy','bakery','pantry','other'].map(c=>`<option value="${c}"${item.cat===c?' selected':''}>${c}</option>`).join('')}
+            ${state.categories.map(c=>`<option value="${c.id}"${item.cat===c.id?' selected':''}>${c.name}</option>`).join('')}
           </select>
           <input type="number" id="ep-${item.id}" value="${item.defaultPrice||''}" placeholder="Usual price $" min="0" step="0.01" style="width:100%;margin-bottom:8px">
           <div class="edit-actions" style="display:flex;gap:8px">
@@ -713,6 +806,8 @@ async function init() {
   document.getElementById('headerDate').textContent =
     new Date().toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long' });
 
+  if (!state.categories) state.categories = DEFAULT_CATS;
+  populateCatSelects();
   renderDropdown();
   renderCart();
   renderSummary();
