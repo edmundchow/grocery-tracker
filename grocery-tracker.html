@@ -156,6 +156,22 @@
   .export-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
 
   /* Toast */
+  .trip-modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0; }
+  .trip-modal { background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden; }
+  .trip-modal-header { padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+  .trip-modal-title { font-size:16px;font-weight:700;color:var(--text); }
+  .trip-modal-sub { font-size:12px;color:var(--text2);margin-top:2px; }
+  .trip-modal-body { overflow-y:auto;flex:1;padding:0 0 16px; }
+  .trip-modal-item { display:flex;align-items:center;gap:10px;padding:11px 20px;border-bottom:1px solid var(--border); }
+  .trip-modal-item:last-child { border-bottom:none; }
+  .trip-modal-name { flex:1;font-size:14px;color:var(--text); }
+  .trip-modal-cat { font-size:11px;color:var(--text3); }
+  .trip-modal-price { font-size:15px;font-weight:700;color:var(--text); }
+  .trip-modal-footer { padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--gray-light); }
+  .trip-modal-total-label { font-size:13px;color:var(--text2);font-weight:600; }
+  .trip-modal-total-val { font-size:22px;font-weight:700;color:var(--green); }
+  .trip-close-btn { width:32px;height:32px;border-radius:50%;border:none;background:var(--gray-200);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center; }
+  .cat-section-header { padding:10px 20px 4px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;background:var(--gray-light); }
   .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1f2937; color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -765,8 +781,53 @@ function renderHistory() {
 
 function viewTrip(idx) {
   const h = state.history[idx];
-  const lines = h.items.map(i => `• ${i.name} (${i.cat}) — ${fmtMoney(i.price)}`).join('\n');
-  toast(`${h.date} — ${h.items.length} items — ${fmtMoney(h.total)}`, 4000);
+
+  // Group items by category
+  const grouped = {};
+  h.items.forEach(item => {
+    if (!grouped[item.cat]) grouped[item.cat] = [];
+    grouped[item.cat].push(item);
+  });
+
+  // Build items HTML grouped by category
+  let itemsHtml = '';
+  Object.keys(grouped).forEach(catId => {
+    const catName = getCatName(catId);
+    const color = getCatColor(catId);
+    itemsHtml += `<div class="cat-section-header" style="border-left:3px solid ${color};padding-left:17px">${catName}</div>`;
+    grouped[catId].forEach(item => {
+      itemsHtml += `
+        <div class="trip-modal-item">
+          <div class="cat-dot" style="background:${color}"></div>
+          <div class="trip-modal-name">
+            ${item.name}
+          </div>
+          <div class="trip-modal-price">${fmtMoney(item.price)}</div>
+        </div>`;
+    });
+  });
+
+  const overlay = document.createElement('div');
+  overlay.className = 'trip-modal-overlay';
+  overlay.innerHTML = `
+    <div class="trip-modal">
+      <div class="trip-modal-header">
+        <div>
+          <div class="trip-modal-title">${h.date}</div>
+          <div class="trip-modal-sub">${h.items.length} items</div>
+        </div>
+        <button class="trip-close-btn" onclick="this.closest('.trip-modal-overlay').remove()">×</button>
+      </div>
+      <div class="trip-modal-body">${itemsHtml}</div>
+      <div class="trip-modal-footer">
+        <div class="trip-modal-total-label">Total spent</div>
+        <div class="trip-modal-total-val">${fmtMoney(h.total)}</div>
+      </div>
+    </div>`;
+
+  // Close on overlay tap
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 function deleteTrip(idx) {
