@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.edmundchow.wheremymoneywent",
+    "sha256_cert_fingerprints": ["04:5B:52:BA:75:02:57:42:1D:1E:FD:9A:5A:03:A7:DE:18:8F:9F:93:B5:67:56:34:91:9C:61:A6:8B:BF:45:93"]
+  }
+}]
