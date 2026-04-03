@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Where My Money Went">
+<meta name="apple-mobile-web-app-title" content="WMMW">
 <meta name="theme-color" content="#ffffff">
 <title>Where My Money Went</title>
 
@@ -249,8 +249,12 @@
     <div class="card">
       <div class="card-header">From my list</div>
       <div class="card-body">
+        <div class="input-row" style="margin-bottom:8px">
+          <select id="shopCatSelect" onchange="onShopCatChange()" style="flex:1">
+          </select>
+        </div>
         <div class="input-row">
-          <select id="dropdownSelect">
+          <select id="dropdownSelect" style="flex:1">
             <option value="">— choose item —</option>
           </select>
           <input type="number" id="dropdownPrice" placeholder="$0.00" class="price-input" min="0" step="0.01">
@@ -428,8 +432,8 @@ function saveCatEdit(id) {
 function deleteCat(id) {
   const inUse = state.list.some(i => i.cat === id);
   if (inUse) { toast('Cannot delete — items are using this category'); return; }
-  if (!confirm('Delete this category?')) return;
-  state.categories = state.categories.filter(c => c.id !== id);
+  customConfirm('Delete category "' + (state.categories.find(c=>c.id===id)?.name||'') + '"?', () => { state.categories = state.categories.filter(c => c.id !== id); saveState(); populateCatSelects(); renderCatList(); toast('Category deleted'); });
+  return;
   saveState(); populateCatSelects(); renderCatList(); toast('Category deleted');
 }
 function addCategory() {
@@ -465,21 +469,21 @@ function loadState() {
       if (req.result) state = req.result;
       else state = {
         list: [
-          {id:1,name:'Milk',cat:'dairy',defaultPrice:4.50},
-          {id:2,name:'Bread',cat:'bakery',defaultPrice:5.00},
-          {id:3,name:'Eggs (dozen)',cat:'dairy',defaultPrice:7.50},
-          {id:4,name:'Chicken breast',cat:'meat',defaultPrice:12.00},
-          {id:5,name:'Bananas',cat:'produce',defaultPrice:3.00},
-          {id:6,name:'Tomatoes',cat:'produce',defaultPrice:4.00},
-          {id:7,name:'Cheese',cat:'dairy',defaultPrice:8.00},
-          {id:8,name:'Pasta',cat:'pantry',defaultPrice:2.50},
-          {id:9,name:'Rice (2kg)',cat:'pantry',defaultPrice:6.00},
-          {id:10,name:'Apples',cat:'produce',defaultPrice:5.50},
-          {id:11,name:'Butter',cat:'dairy',defaultPrice:5.00},
-          {id:12,name:'Yoghurt',cat:'dairy',defaultPrice:4.00},
-          {id:13,name:'Mince beef',cat:'meat',defaultPrice:10.00},
-          {id:14,name:'Carrots',cat:'produce',defaultPrice:2.50},
-          {id:15,name:'Onions',cat:'produce',defaultPrice:2.00},
+          {id:1,name:'Milk',cat:'dairy',defaultPrice:0},
+          {id:2,name:'Bread',cat:'bakery',defaultPrice:0},
+          {id:3,name:'Eggs (dozen)',cat:'dairy',defaultPrice:0},
+          {id:4,name:'Chicken breast',cat:'meat',defaultPrice:0},
+          {id:5,name:'Bananas',cat:'produce',defaultPrice:0},
+          {id:6,name:'Tomatoes',cat:'produce',defaultPrice:0},
+          {id:7,name:'Cheese',cat:'dairy',defaultPrice:0},
+          {id:8,name:'Pasta',cat:'pantry',defaultPrice:0},
+          {id:9,name:'Rice (2kg)',cat:'pantry',defaultPrice:0},
+          {id:10,name:'Apples',cat:'produce',defaultPrice:0},
+          {id:11,name:'Butter',cat:'dairy',defaultPrice:0},
+          {id:12,name:'Yoghurt',cat:'dairy',defaultPrice:0},
+          {id:13,name:'Mince beef',cat:'meat',defaultPrice:0},
+          {id:14,name:'Carrots',cat:'produce',defaultPrice:0},
+          {id:15,name:'Onions',cat:'produce',defaultPrice:0},
         ],
         cart:[], history:[], nextId:100, budgetOn:false, budget:150,
         categories: DEFAULT_CATS
@@ -550,17 +554,48 @@ function toggleBudget() {
 }
 
 // ── Dropdown ───────────────────────────────────────────────────────────────
+let lastShopCat = null;
+
+function renderShopCatSelect() {
+  const sel = document.getElementById('shopCatSelect');
+  if (!sel) return;
+  const cur = lastShopCat || state.categories[0]?.id;
+  sel.innerHTML = state.categories.map(c =>
+    `<option value="${c.id}"${c.id===cur?' selected':''}>${c.name}</option>`
+  ).join('');
+  if (!lastShopCat) lastShopCat = sel.value;
+  renderDropdown();
+}
+
+function onShopCatChange() {
+  const sel = document.getElementById('shopCatSelect');
+  lastShopCat = sel.value;
+  document.getElementById('dropdownSelect').value = '';
+  document.getElementById('dropdownPrice').value = '';
+  renderDropdown();
+}
+
 function renderDropdown() {
+  const catSel = document.getElementById('shopCatSelect');
+  const activeCat = catSel ? catSel.value : null;
   const sel = document.getElementById('dropdownSelect');
   const val = sel.value;
+
+  const filtered = [...state.list]
+    .filter(i => !activeCat || i.cat === activeCat)
+    .sort((a,b) => a.name.localeCompare(b.name));
+
   sel.innerHTML = '<option value="">— choose item —</option>' +
-    [...state.list].sort((a,b) => a.name.localeCompare(b.name))
-      .map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+    filtered.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
   if (val) sel.value = val;
+
   sel.onchange = () => {
     const item = state.list.find(i => i.id == sel.value);
-    if (item) document.getElementById('dropdownPrice').value = item.defaultPrice || '';
-    else document.getElementById('dropdownPrice').value = '';
+    if (item) {
+      document.getElementById('dropdownPrice').value = item.defaultPrice || '';
+    } else {
+      document.getElementById('dropdownPrice').value = '';
+    }
   };
 }
 
@@ -590,8 +625,14 @@ function addFromDropdown() {
   if (!item) { toast('Please choose an item'); return; }
   if (isNaN(price) || price <= 0) { toast('Please enter a price'); return; }
   state.cart.push({ uid: Date.now(), name: item.name, cat: item.cat, price });
-  sel.value = ''; document.getElementById('dropdownPrice').value = '';
-  saveState(); renderCart(); renderSummary();
+  // Keep category selected, just clear item + price
+  sel.value = '';
+  document.getElementById('dropdownPrice').value = '';
+  // Remember last used category for next item
+  lastShopCat = item.cat;
+  const catSel = document.getElementById('shopCatSelect');
+  if (catSel) catSel.value = item.cat;
+  saveState(); renderCart(); renderSummary(); renderDropdown();
 }
 
 function addSpecial() {
@@ -680,7 +721,7 @@ function saveEdit(id) {
 }
 
 function deleteItem(id) {
-  if (!confirm('Remove this item from your list?')) return;
+  if (!customConfirm('Remove "' + (state.list.find(i=>i.id===id)?.name||'this item') + '" from your list?', () => doDeleteItem(id))) return;
   state.list = state.list.filter(i => i.id !== id);
   saveState(); renderDropdown(); renderManageList(); toast('Item removed');
 }
@@ -725,11 +766,12 @@ function renderHistory() {
 function viewTrip(idx) {
   const h = state.history[idx];
   const lines = h.items.map(i => `• ${i.name} (${i.cat}) — ${fmtMoney(i.price)}`).join('\n');
-  alert(`${h.date}\n\n${lines}\n\nTotal: ${fmtMoney(h.total)}`);
+  toast(`${h.date} — ${h.items.length} items — ${fmtMoney(h.total)}`, 4000);
 }
 
 function deleteTrip(idx) {
-  if (!confirm('Delete this trip?')) return;
+  customConfirm('Delete this trip?', () => { state.history.splice(idx,1); saveState(); renderHistory(); toast('Trip deleted'); });
+  return;
   state.history.splice(idx, 1);
   saveState(); renderHistory(); toast('Trip deleted');
 }
@@ -780,6 +822,24 @@ function registerSW() {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
+// ── Custom confirm dialog ─────────────────────────────────────────────────
+function customConfirm(msg, onYes) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">Are you sure?</div>
+      <div style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.5">${msg}</div>
+      <div style="display:flex;gap:10px">
+        <button id="confirmNo" style="flex:1;height:44px;border-radius:10px;border:1.5px solid var(--border);background:var(--gray-light);color:var(--text);font-size:15px;font-weight:600;cursor:pointer">Cancel</button>
+        <button id="confirmYes" style="flex:1;height:44px;border-radius:10px;border:none;background:var(--red);color:white;font-size:15px;font-weight:600;cursor:pointer">Delete</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#confirmNo').onclick = () => document.body.removeChild(overlay);
+  overlay.querySelector('#confirmYes').onclick = () => { document.body.removeChild(overlay); onYes(); };
+}
+
 // ── App title ─────────────────────────────────────────────────────────────
 function editAppTitle() {
   const current = document.getElementById('appTitleText').textContent;
@@ -808,7 +868,7 @@ async function init() {
 
   if (!state.categories) state.categories = DEFAULT_CATS;
   populateCatSelects();
-  renderDropdown();
+  renderShopCatSelect();
   renderCart();
   renderSummary();
   registerSW();
