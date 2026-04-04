@@ -143,7 +143,13 @@
   .edit-actions { display: flex; gap: 8px; }
 
   /* History */
+  .day-group { margin-bottom: 12px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .day-group-header { padding: 10px 16px; background: var(--blue); color: white; display: flex; justify-content: space-between; align-items: center; }
+  .day-group-date { font-size: 14px; font-weight: 700; }
+  .day-group-total { font-size: 13px; font-weight: 600; opacity: 0.9; }
+  .day-group-meta { font-size: 11px; opacity: 0.75; margin-top: 1px; }
   .history-item { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .history-item:last-child { border-bottom: none; }
   .history-item:last-child { border-bottom: none; }
   .history-date { flex: 1; }
   .history-date-main { font-size: 14px; font-weight: 600; }
@@ -534,24 +540,56 @@ function switchTab(tab) {
 }
 
 // ── Summary / header ───────────────────────────────────────────────────────
+function getTodayKey() {
+  return new Date().toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+}
+
+function getTodaySavedTotal() {
+  const todayKey = getTodayKey();
+  return state.history
+    .filter(h => getDateKey(h.isoDate || h.date) === todayKey)
+    .reduce((s,h) => s + h.total, 0);
+}
+
+function getTodaySavedItems() {
+  const todayKey = getTodayKey();
+  return state.history
+    .filter(h => getDateKey(h.isoDate || h.date) === todayKey)
+    .reduce((s,h) => s + h.items.length, 0);
+}
+
 function renderSummary() {
-  const total = state.cart.reduce((s,i) => s + parseFloat(i.price), 0);
-  document.getElementById('totalSpent').textContent = fmtMoney(total);
-  document.getElementById('itemCount').textContent = state.cart.length;
+  const cartTotal = state.cart.reduce((s,i) => s + parseFloat(i.price), 0);
+  const savedToday = getTodaySavedTotal();
+  const dayTotal = cartTotal + savedToday;
+
+  document.getElementById('totalSpent').textContent = fmtMoney(dayTotal);
+  document.getElementById('itemCount').textContent = state.cart.length + getTodaySavedItems();
+
+  // Show saved indicator if there are already saved trips today
+  const savedLabel = document.getElementById('savedTodayLabel');
+  if (savedLabel) {
+    if (savedToday > 0) {
+      savedLabel.textContent = 'incl. ' + fmtMoney(savedToday) + ' saved';
+      savedLabel.style.display = 'block';
+    } else {
+      savedLabel.style.display = 'none';
+    }
+  }
 
   const budgetOn = state.budgetOn;
   const budget = parseFloat(document.getElementById('budgetInput').value) || 0;
   state.budget = budget;
 
   if (budgetOn && budget > 0) {
-    const left = budget - total;
+    const left = budget - dayTotal;
     const over = left < 0;
-    const pct = Math.min(100, Math.round((total / budget) * 100));
+    const pct = Math.min(100, Math.round((dayTotal / budget) * 100));
     const el = document.getElementById('budgetLeft');
     el.textContent = (over ? '-' : '') + fmtMoney(left);
     el.className = 'total-value' + (over ? ' over' : '');
     document.getElementById('budgetBarWrap').style.display = 'block';
-    document.getElementById('budgetBarLeft').textContent = fmtMoney(total) + ' of ' + fmtMoney(budget);
+    document.getElementById('budgetBarLeft').textContent = fmtMoney(dayTotal) + ' of ' + fmtMoney(budget);
     document.getElementById('budgetBarPct').textContent = pct + '%';
     const bar = document.getElementById('budgetBar');
     bar.style.width = pct + '%';
@@ -672,8 +710,12 @@ function addSpecial() {
 }
 
 function removeFromCart(uid) {
-  state.cart = state.cart.filter(i => i.uid !== uid);
-  saveState(); renderCart(); renderSummary();
+  const item = state.cart.find(i => i.uid === uid);
+  const name = item ? item.name : 'this item';
+  customConfirm('Remove "' + name + '" from your cart?', () => {
+    state.cart = state.cart.filter(i => i.uid !== uid);
+    saveState(); renderCart(); renderSummary();
+  });
 }
 
 function saveTrip() {
@@ -760,6 +802,21 @@ function addToList() {
 }
 
 // ── History ────────────────────────────────────────────────────────────────
+function getDateKey(isoDate) {
+  const d = new Date(isoDate);
+  return d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+}
+
+function groupHistoryByDate() {
+  const groups = {};
+  state.history.forEach((h, idx) => {
+    const key = getDateKey(h.isoDate || h.date);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ ...h, idx });
+  });
+  return groups;
+}
+
 function renderHistory() {
   const hist = document.getElementById('historyList');
   const expSel = document.getElementById('exportSelect');
@@ -768,21 +825,52 @@ function renderHistory() {
     expSel.innerHTML = '<option value="all">All trips</option>';
     return;
   }
-  hist.innerHTML = state.history.map((h,i) => `
-    <div class="history-item">
-      <div class="history-date">
-        <div class="history-date-main">${h.date}</div>
-        <div class="history-date-sub">${h.items.length} items</div>
-      </div>
-      <div class="history-amount">${fmtMoney(h.total)}</div>
-      <div class="history-actions">
-        <button class="btn btn-sm btn-secondary" onclick="viewTrip(${i})">View</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteTrip(${i})">Del</button>
-      </div>
-    </div>`).join('');
 
-  expSel.innerHTML = '<option value="all">All trips</option>' +
-    state.history.map((h,i) => `<option value="${i}">${h.date} — ${fmtMoney(h.total)}</option>`).join('');
+  // Group trips by date
+  const groups = groupHistoryByDate();
+
+  hist.innerHTML = Object.entries(groups).map(([dateKey, trips]) => {
+    const dayTotal = trips.reduce((s,h) => s + h.total, 0);
+    const dayItems = trips.reduce((s,h) => s + h.items.length, 0);
+
+    const tripsHtml = trips.map(h => `
+      <div class="history-item">
+        <div class="history-date" style="flex:1">
+          <div class="history-date-main" style="font-size:13px">${h.items.length} items${trips.length > 1 ? ' · Trip ' + (trips.indexOf(h)+1) : ''}</div>
+          <div class="history-date-sub">${fmtMoney(h.total)}</div>
+        </div>
+        <div class="history-actions">
+          <button class="btn btn-sm btn-secondary" onclick="viewTrip(${h.idx})">View</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTrip(${h.idx})">Del</button>
+        </div>
+      </div>`).join('');
+
+    return `
+      <div class="day-group">
+        <div class="day-group-header">
+          <div>
+            <div class="day-group-date">${dateKey}</div>
+            <div class="day-group-meta">${trips.length} trip${trips.length>1?'s':''} · ${dayItems} items</div>
+          </div>
+          <div class="day-group-total">${fmtMoney(dayTotal)}</div>
+        </div>
+        ${tripsHtml}
+      </div>`;
+  }).join('');
+
+  // Export dropdown — group by date
+  expSel.innerHTML = '<option value="all">All trips</option>';
+  Object.entries(groups).forEach(([dateKey, trips]) => {
+    if (trips.length === 1) {
+      expSel.innerHTML += `<option value="${trips[0].idx}">${dateKey} — ${fmtMoney(trips[0].total)}</option>`;
+    } else {
+      const dayTotal = trips.reduce((s,h) => s+h.total, 0);
+      expSel.innerHTML += `<option value="day_${dateKey}">${dateKey} (all trips) — ${fmtMoney(dayTotal)}</option>`;
+      trips.forEach((h,ti) => {
+        expSel.innerHTML += `<option value="${h.idx}">&nbsp;&nbsp;Trip ${ti+1} — ${fmtMoney(h.total)}</option>`;
+      });
+    }
+  });
 }
 
 function viewTrip(idx) {
@@ -847,24 +935,43 @@ function deleteTrip(idx) {
 function exportExcel() {
   if (typeof XLSX === 'undefined') { toast('Excel library loading, try again'); return; }
   const val = document.getElementById('exportSelect').value;
-  const trips = val === 'all' ? state.history : [state.history[parseInt(val)]];
+  let trips = [];
+  if (val === 'all') {
+    trips = state.history;
+  } else if (val.startsWith('day_')) {
+    const dateKey = val.replace('day_', '');
+    trips = state.history.filter((h,i) => getDateKey(h.isoDate || h.date) === dateKey);
+  } else {
+    const t = state.history[parseInt(val)];
+    if (t) trips = [t];
+  }
   if (!trips.length) { toast('No trips to export'); return; }
 
   const wb = XLSX.utils.book_new();
 
-  trips.forEach(trip => {
-    const rows = [
-      ['Where My Money Went — ' + trip.date],
-      [],
-      ['Item', 'Category', 'Price (AUD)']
-    ];
-    trip.items.forEach(i => rows.push([i.name, i.cat, parseFloat(i.price)]));
-    rows.push([]);
-    rows.push(['', 'TOTAL', trip.total]);
+  // Group trips by date for Excel sheets
+  const excelGroups = {};
+  trips.forEach((trip,i) => {
+    const key = getDateKey(trip.isoDate || trip.date);
+    if (!excelGroups[key]) excelGroups[key] = [];
+    excelGroups[key].push(trip);
+  });
+
+  Object.entries(excelGroups).forEach(([dateKey, dayTrips]) => {
+    const rows = [['Where My Money Went — ' + dateKey], []];
+    let dayTotal = 0;
+    dayTrips.forEach((trip, ti) => {
+      if (dayTrips.length > 1) rows.push(['— Trip ' + (ti+1) + ' —', '', '']);
+      rows.push(['Item', 'Category', 'Price (AUD)']);
+      trip.items.forEach(i => { rows.push([i.name, getCatName(i.cat), parseFloat(i.price)]); dayTotal += parseFloat(i.price); });
+      rows.push(['', 'Trip total', trip.total]);
+      rows.push([]);
+    });
+    if (dayTrips.length > 1) rows.push(['', 'DAY TOTAL', dayTotal]);
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch:24 }, { wch:12 }, { wch:14 }];
-    const name = trip.date.replace(/[:\\\/\?\*\[\]]/g,'').substring(0,31);
-    XLSX.utils.book_append_sheet(wb, ws, name);
+    ws['!cols'] = [{ wch:24 }, { wch:14 }, { wch:14 }];
+    const sheetName = dateKey.replace(/[:\\\/\?\*\[\]]/g,'').substring(0,31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
   if (trips.length > 1) {
