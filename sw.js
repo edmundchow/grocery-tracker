@@ -1,4 +1,4 @@
-const CACHE = 'where-my-money-went-v7';
+const CACHE = 'where-my-money-went-v8';
 const ASSETS = [
   './grocery-tracker.html',
   './manifest.json',
