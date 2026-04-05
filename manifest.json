@@ -3,21 +3,21 @@
   "name": "Where My Money Went",
   "short_name": "Money Went",
   "description": "Track exactly where your money went each week. Log grocery and market purchases from your personal list, set a budget, and export your spending history to Excel.",
-  "start_url": "https://edmundchow.github.io/where-my-money-went/grocery-tracker.html",
+  "start_url": "https://where-my-money-went.netlify.app/grocery-tracker.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
   "orientation": "any",
-  "scope": "https://edmundchow.github.io/where-my-money-went/",
+  "scope": "https://where-my-money-went.netlify.app/",
   "icons": [
     {
-      "src": "https://edmundchow.github.io/where-my-money-went/icon-192.png",
+      "src": "https://where-my-money-went.netlify.app/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://edmundchow.github.io/where-my-money-went/icon-512.png",
+      "src": "https://where-my-money-went.netlify.app/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -25,7 +25,7 @@
   ],
   "screenshots": [
     {
-      "src": "https://edmundchow.github.io/where-my-money-went/icon-512.png",
+      "src": "https://where-my-money-went.netlify.app/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "label": "Where My Money Went home screen"
